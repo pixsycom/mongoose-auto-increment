@@ -21,10 +21,14 @@ after(function (done) {
 });
 
 afterEach(function (done) {
-  connection.model('User').collection.drop(function () {
-    delete connection.models.User;
-    connection.model('IdentityCounter').collection.drop(done);
-  });
+  try {
+    connection.model('User').collection.drop(function () {
+      delete connection.models.User;
+      connection.model('IdentityCounter').collection.drop(done);
+    });
+  } catch(e) {
+    done();
+  }
 });
 
 describe('mongoose-auto-increment', function () {
@@ -166,8 +170,68 @@ describe('mongoose-auto-increment', function () {
 
   });
 
+  describe('with incrementor groups', function () {
+    it('should increment the specified field within the groupingField instead', function(done) {
 
+      // Arrange
+      var userSchema = new mongoose.Schema({
+        name: String,
+        dept: String
+      });
+      userSchema.plugin(autoIncrement.plugin, { model: 'User', field: 'userId', groupingField: 'dept' });
+      var User = connection.model('User', userSchema),
+      user1 = new User({ name: 'Charlie', dept: 'Support' }),
+      user2 = new User({ name: 'Charlene', dept: 'Marketing' }),
+      user3 = new User({ name: 'John', dept: 'Support' }),
+      user4 = new User({ name: 'John', dept: 'Marketing' });
 
+      // Act
+      async.series({
+        user1: function (cb) {
+          user1.save(cb);
+        },
+        user2: function (cb) {
+          user2.save(cb);
+        },
+        user3: function (cb) {
+          user3.save(cb);
+        },
+        user4: function (cb) {
+          user4.save(cb);
+        }
+      }, assert);
+
+      // Assert
+      function assert(err, results) {
+        if (err) {
+          done(err);
+        } else {
+          should.not.exist(err);
+          results.user1[0].should.have.property('userId', 0);
+          results.user2[0].should.have.property('userId', 0);
+          results.user3[0].should.have.property('userId', 1);
+          results.user4[0].should.have.property('userId', 1);
+          done();
+        }
+      }
+
+    });
+
+    it('should not allow grouping fields with _id as the field', function(done) {
+      // Arrange
+      var userSchema = new mongoose.Schema({
+        name: String,
+        dept: String
+      });
+
+      try {
+        userSchema.plugin(autoIncrement.plugin, { model: 'User', groupingField: 'dept' });
+      } catch (err) {
+        err.message.should.equal('Cannot use a grouping field with _id, choose a different field name.');
+        done();
+      }
+    });
+  });
 
   describe('helper function', function () {
 
@@ -253,6 +317,55 @@ describe('mongoose-auto-increment', function () {
       }
 
     });
+
+    describe('with incrementor groups', function() {
+      it('nextCount should return the next count for the model, field, and groupingField', function (done) {
+
+      // Arrange
+      var userSchema = new mongoose.Schema({
+        name: String,
+        dept: String
+      });
+      userSchema.plugin(autoIncrement.plugin, { model: 'User', field: 'userId', groupingField: 'dept' });
+      var User = connection.model('User', userSchema),
+      user1 = new User({ name: 'Charlie', dept: 'Support' }),
+      user2 = new User({ name: 'Charlene', dept: 'Marketing' });
+
+      // Act
+      async.series({
+        count1: function (cb) {
+          user1.nextCount(user1.dept, cb);
+        },
+        user1: function (cb) {
+          user1.save(cb);
+        },
+        count2: function (cb) {
+          user1.nextCount(user1.dept, cb);
+        },
+        user2: function (cb) {
+          user2.save(cb);
+        },
+        count3: function (cb) {
+          user2.nextCount(user2.dept, cb);
+        }
+      }, assert);
+
+      // Assert
+      function assert(err, results) {
+        if (err) {
+          done(err);
+        }
+        should.not.exist(err);
+        results.count1.should.equal(0);
+        results.user1[0].should.have.property('userId', 0);
+        results.count2.should.equal(1);
+        results.user2[0].should.have.property('userId', 0);
+        results.count3.should.equal(1);
+        done();
+      }
+
+    });
+    })
 
   });
 });
