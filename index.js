@@ -66,13 +66,15 @@ exports.plugin = function (schema, options) {
     throw new Error("Cannot use a grouping field with _id, choose a different field name.")
   }
 
-  // Add properties for field in schema.
-  fields[settings.field] = {
-    type: Number,
-    require: true
-  };
-
   if (settings.field !== '_id') {
+
+    if (!schema.paths[settings.field]) {
+      fields[settings.field] = {
+        type: Number,
+        require: true
+      };
+    }
+
     // If a groupingField is specified, create a compound unique index.
     if (settings.groupingField.length) {
       var compoundIndex = {};
@@ -82,6 +84,7 @@ exports.plugin = function (schema, options) {
 
     // Otherwise, add the unique index directly to the custom field.
     } else {
+      // Add properties for field in schema.
       fields[settings.field].unique = settings.unique;
     }
   }
