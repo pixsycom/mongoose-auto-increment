@@ -43,7 +43,8 @@ exports.plugin = function (schema, options) {
     groupingField: '', // The field by which to group documents, allowing for each grouping to be incremented separately.
     startAt: 0, // The number the count should start at.
     incrementBy: 1, // The number by which to increment the count each time.
-    unique: true // Should we create a unique index for the field
+    unique: true, // Should we create a unique index for the field,
+    outputFilter: undefined // function that modifies the output of the counter. 
   },
   fields = {}; // A hash of fields to add properties to in Mongoose.
 
@@ -201,8 +202,16 @@ exports.plugin = function (schema, options) {
               // Receive the updated counter.
               function (err, updatedIdentityCounter) {
                 if (err) return next(err);
+
+                var count = updatedIdentityCounter.count;
+
+                // if an output filter was provided, apply it.
+                if (typeof settings.outputFilter === 'function') {
+                  count = settings.outputFilter(updatedIdentityCounter.count);
+                }
+
                 // If there are no errors then go ahead and set the document's field to the current count.
-                doc[settings.field] = updatedIdentityCounter.count;
+                doc[settings.field] = count;
                 // Continue with default document save functionality.
                 next();
               }
