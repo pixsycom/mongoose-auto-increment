@@ -149,7 +149,7 @@ exports.plugin = function (schema, options) {
     var ready = false; // True if the counter collection has been updated and the document is ready to be saved.
 
     // Only do this if it is a new document (see http://mongoosejs.com/docs/api.html#document_Document-isNew)
-    if (doc.isNew) {
+    //if (doc.isNew) {
       // Find the counter for this model and the relevant field.
       IdentityCounter.findOne(
         { model: settings.model, field: settings.field, groupingField: doc[settings.groupingField] || '' },
@@ -226,10 +226,10 @@ exports.plugin = function (schema, options) {
         else
           setTimeout(save, 5);
       })();
-    }
+    //}
     // If the document does not have the field we're interested in or that field isn't a number AND the user did
     // not specify that we should increment on updates, then just continue the save without any increment logic.
-    else
-      next();
+    //else
+    //  next();
   });
 };
