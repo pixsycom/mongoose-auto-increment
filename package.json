@@ -7,7 +7,7 @@
     "url": "git://github.com/codetunnel/mongoose-auto-increment.git"
   },
   "dependencies": {
-    "extend": "^3.0.0"
+    "lodash": "^4.6.1"
   },
   "peerDependencies": {
     "mongoose": "^4.1.12"
