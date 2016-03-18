@@ -5,7 +5,7 @@ autoIncrement = require('..'),
 connection;
 
 before(function (done) {
-  connection = mongoose.createConnection('mongodb://127.0.0.1/mongoose-auto-increment-test');
+  connection = mongoose.createConnection(process.env.MONGO_URL || 'mongodb://localhost/unit_test');
   connection.on('error', console.error.bind(console));
   connection.once('open', function () {
     autoIncrement.initialize(connection);
