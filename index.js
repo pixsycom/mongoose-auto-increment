@@ -2,13 +2,14 @@
 var mongoose = require('mongoose');
 var _ = require('lodash');
 
+var IdentityCounter;
+
 var counterSchema = new mongoose.Schema({
     model: { type: String, required: true },
     field: { type: String, required: true },
     groupingField: { type: String, default: '' },
     count: { type: Number, default: 0 }
 });
-var IdentityCounter;
 
 counterSchema.index({
     field: 1,
@@ -110,57 +111,71 @@ exports.plugin = function plugin(schema, options) {
 
         // Only do this if it is a new document (see http://mongoosejs.com/docs/api.html#document_Document-isNew)
         if (doc.isNew || settings.migrate) {
-            // Find the counter for this model and the relevant field.
-            IdentityCounter.findOne({
-                model: settings.model,
-                field: settings.field,
-                groupingField: doc.get(settings.groupingField) || ''
-            }).exec().then(function (counter) {
-                if (counter) {
-                    return counter;
-                }
-
-                // If no counter exists then create one and save it.
-                counter = new IdentityCounter({
+            (function save() {
+                // Find the counter for this model and the relevant field.
+                IdentityCounter.findOne({
                     model: settings.model,
                     field: settings.field,
-                    groupingField: doc.get(settings.groupingField) || '',
-                    count: settings.startAt - settings.incrementBy
-                });
+                    groupingField: doc.get(settings.groupingField) || ''
+                }).exec().then(function (counter) {
+                    if (counter) {
+                        return counter;
+                    }
 
-                return counter.save();
-            }).then(function updateCounter(counter) {
-                // check that a number has already been provided, and update the counter to that number if it is
-                // greater than the current count
-                if (typeof doc.get(settings.field) === 'number') {
-                    return IdentityCounter.findOneAndUpdate({
-                        _id: counter._id,
-                        count: { $lt: doc.get(settings.field) }
-                    }, {
-                        // Change the count of the value found to the new field value.
-                        count: doc.get(settings.field)
-                    }).exec();
-                } else {
-                    // Find the counter collection entry for this model and field and update it.
-                    return IdentityCounter.findByIdAndUpdate(counter._id, {
-                        // Increment the count by `incrementBy`.
-                        $inc: { count: settings.incrementBy }
-                    }, {
-                        // new:true specifies that the callback should get the counter AFTER it is updated (incremented).
-                        new: true
-                    }).exec().then(function setCount(updatedIdentityCounter) {
-                        var count = updatedIdentityCounter.count;
-
-                        // if an output filter was provided, apply it.
-                        if (typeof settings.outputFilter === 'function') {
-                          count = settings.outputFilter(updatedIdentityCounter.count);
-                        }
-
-                        // If there are no errors then go ahead and set the document's field to the current count.
-                        doc.set(settings.field, count);
+                    // If no counter exists then create one and save it.
+                    counter = new IdentityCounter({
+                        model: settings.model,
+                        field: settings.field,
+                        groupingField: doc.get(settings.groupingField) || '',
+                        count: settings.startAt - settings.incrementBy
                     });
-                }
-            }).then(next).catch(next);
+
+                    return counter.save();
+                }).then(function updateCounter(counter) {
+                    // check that a number has already been provided, and update the counter to that number if it is
+                    // greater than the current count
+                    if (typeof doc.get(settings.field) === 'number') {
+                        return IdentityCounter.findOneAndUpdate({
+                            model: settings.model,
+                            field: settings.field,
+                            groupingField: doc.get(settings.groupingField) || '',
+                            count: { $lt: doc.get(settings.field) }
+                        }, {
+                            // Change the count of the value found to the new field value.
+                            count: doc.get(settings.field)
+                        }).exec();
+                    } else {
+                        // Find the counter collection entry for this model and field and update it.
+                        return IdentityCounter.findOneAndUpdate({
+                            model: settings.model,
+                            field: settings.field,
+                            groupingField: doc.get(settings.groupingField) || '',
+                        }, {
+                            // Increment the count by `incrementBy`.
+                            $inc: { count: settings.incrementBy }
+                        }, {
+                            // new:true specifies that the callback should get the counter AFTER it is updated (incremented).
+                            new: true,
+                        }).exec().then(function setCount(updatedIdentityCounter) {
+                            var count = updatedIdentityCounter.count;
+
+                            // if an output filter was provided, apply it.
+                            if (typeof settings.outputFilter === 'function') {
+                              count = settings.outputFilter(updatedIdentityCounter.count);
+                            }
+
+                            // If there are no errors then go ahead and set the document's field to the current count.
+                            doc.set(settings.field, count);
+                        });
+                    }
+                }).then(next).catch(function(err) {
+                    if (err.name === 'MongoError' && err.code === 11000) {
+                        setTimeout(save, 5);
+                    } else {
+                        next(err);
+                    }
+                });
+            })();
         // If the document does not have the field we're interested in or that field isn't a number AND the user did
         // not specify that we should increment on updates, then just continue the save without any increment logic.
         } else {

@@ -97,6 +97,32 @@ describe('mongoose-auto-increment', function () {
 
   });
 
+  it('should not throw duplicate key errors when creating counter docs while multiple documents in parallel', function(done) {
+      // Arrange
+      var userSchema = new mongoose.Schema({
+        name: String,
+        dept: String
+      });
+      userSchema.plugin(autoIncrement.plugin, { model: 'User', field: 'userId' });
+      var User = connection.model('User', userSchema);
+
+      var user1 = new User({ name: 'Charlie', dept: 'Support' });
+      var user2 = new User({ name: 'Charlene', dept: 'Marketing' });
+      var user3 = new User({ name: 'Parallel', dept: 'Something' });
+
+      // Act
+      Promise.all([
+          user1.save(),
+          user2.save(),
+          user3.save(),
+      ]).then(assert).catch(done);
+
+      // Assert
+      function assert(results) {
+        results.length.should.equal(3);
+        done();
+      }
+  });
 
   it('should start counting at specified number (Test 3)', function (done) {
 
@@ -365,7 +391,7 @@ describe('mongoose-auto-increment', function () {
       }
 
     });
-    })
+    });
 
   });
 });
