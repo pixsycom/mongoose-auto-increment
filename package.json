@@ -10,7 +10,7 @@
     "lodash": "^4.12.0"
   },
   "peerDependencies": {
-    "mongoose": "^4.5.8"
+    "mongoose": "^4.1.12"
   },
   "devDependencies": {
     "async": "*",
