@@ -14,7 +14,7 @@
   },
   "devDependencies": {
     "async": "*",
-    "chai": "*",
+    "chai": "3.5.0",
     "mocha": "*",
     "mongoose": "^4.4.17"
   },
