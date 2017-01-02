@@ -13,7 +13,7 @@
     "mongoose": "^4.1.12"
   },
   "devDependencies": {
-    "async": "*",
+    "async": "2.0.0",
     "chai": "*",
     "mocha": "*",
     "mongoose": "^4.7.5"
