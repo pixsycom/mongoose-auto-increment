@@ -104,7 +104,7 @@ exports.plugin = function plugin(schema, options) {
     schema.static('resetCount', resetCount);
 
     // Every time documents in this schema are saved, run this logic.
-    schema.pre('save', function (next) {
+    schema.pre('validate', function (next) {
         // Get reference to the document being saved.
         var doc = this;
         var ready = false; // True if the counter collection has been updated and the document is ready to be saved.
