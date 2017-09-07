@@ -108,9 +108,10 @@ exports.plugin = function plugin(schema, options) {
         // Get reference to the document being saved.
         var doc = this;
         var ready = false; // True if the counter collection has been updated and the document is ready to be saved.
+        var ranOnce = doc.__maiRanOnce === true;
 
-        // Only do this if it is a new document (see http://mongoosejs.com/docs/api.html#document_Document-isNew)
-        if (doc.isNew || settings.migrate) {
+        // Only do this if it is a new document & the field doesn't have a value set (see http://mongoosejs.com/docs/api.html#document_Document-isNew)
+        if ((doc.isNew && ranOnce === false) || settings.migrate) {
             (function save() {
                 // Find the counter for this model and the relevant field.
                 IdentityCounter.findOne({
@@ -166,6 +167,7 @@ exports.plugin = function plugin(schema, options) {
 
                             // If there are no errors then go ahead and set the document's field to the current count.
                             doc.set(settings.field, count);
+                            doc.__maiRanOnce = true;
                         });
                     }
                 }).then(next).catch(function(err) {

@@ -2,6 +2,7 @@ var async = require('async'),
 should = require('chai').should(),
 mongoose = require('mongoose'),
 autoIncrement = require('..'),
+bases = require('bases'),
 connection;
 
 mongoose.Promise = global.Promise;
@@ -373,6 +374,43 @@ describe('mongoose-auto-increment', function () {
         done();
       }
 
+    });
+
+    describe('with string field and output filter', function() {
+      it('should increment the counter value, only once', function(done) {
+        // Arrange
+        var userSchema = new mongoose.Schema({
+          orderNumber: String,
+          name: String,
+          dept: String
+        });
+        userSchema.plugin(autoIncrement.plugin, {
+          model: 'User',
+          field: 'orderNumber',
+          outputFilter: function(value) {
+            return 'R' + value;
+          }
+        });
+        var User = connection.model('User', userSchema),
+        user1 = new User({ name: 'Charlie', dept: 'Support' });
+
+        var initialId;
+
+        // Act
+        user1.validate().then(function() {
+          initialId = user1.orderNumber;
+          return user1.validate();
+        }).then(function() {
+          user1.save(assert);
+        }).catch(done);
+
+        // Assert
+        function assert(err, result) {
+          should.not.exist(err);
+          result.should.have.property('orderNumber', initialId);
+          done();
+        }
+      });
     });
 
     describe('with incrementor groups', function() {
