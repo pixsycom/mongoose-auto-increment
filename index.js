@@ -16,8 +16,7 @@ counterSchema.index({
     groupingField: 1,
     model: 1
 }, {
-  unique: true,
-  index: -1
+  unique: true
 });
 
 // Initialize plugin by creating counter collection in database.
