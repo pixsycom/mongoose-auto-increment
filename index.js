@@ -17,7 +17,6 @@ counterSchema.index({
     model: 1
 }, {
   unique: true,
-  required: true,
   index: -1
 });
 
