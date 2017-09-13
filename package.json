@@ -15,6 +15,7 @@
   "devDependencies": {
     "async": "*",
     "chai": "*",
+    "bases": "^0.2.1",
     "mocha": "*",
     "mongoose": "^4.7.5"
   },
