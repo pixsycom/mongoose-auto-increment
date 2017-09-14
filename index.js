@@ -85,7 +85,7 @@ exports.plugin = function plugin(schema, options) {
     if (settings.groupingField.length) {
         compoundIndex[settings.field] = 1;
         compoundIndex[settings.groupingField] = 1;
-        schema.index(compoundIndex, { unique: settings.unique, required: true, index: -1 });
+        schema.index(compoundIndex, { unique: settings.unique });
 
     // Otherwise, add the unique index directly to the custom field.
     } else {
