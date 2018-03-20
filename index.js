@@ -169,7 +169,7 @@ exports.plugin = function plugin(schema, options) {
                         });
                     }
                 }).then(next).catch(function(err) {
-                    if (err.name === 'MongoError' && err.code === 11000) {
+                    if ((err.name === 'MongoError' || err.name === 'BulkWriteError') && err.code === 11000) {
                         setTimeout(save, 5);
                     } else {
                         next(err);
