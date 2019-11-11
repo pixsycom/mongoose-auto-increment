@@ -16,7 +16,7 @@ counterSchema.index({
     groupingField: 1,
     model: 1
 }, {
-  unique: true
+    unique: true
 });
 
 // Initialize plugin by creating counter collection in database.
@@ -56,15 +56,15 @@ exports.plugin = function plugin(schema, options) {
         throw new Error('mongoose-auto-increment has not been initialized');
     }
 
-    switch (typeof(options)) {
+    switch (typeof (options)) {
         // If string, the user chose to pass in just the model name.
         case 'string':
             settings.model = options;
-        break;
+            break;
         // If object, the user passed in a hash of options.
         case 'object':
             _.assign(settings, options);
-        break;
+            break;
     }
 
     if (typeof settings.model !== 'string') {
@@ -87,7 +87,7 @@ exports.plugin = function plugin(schema, options) {
         compoundIndex[settings.groupingField] = 1;
         schema.index(compoundIndex, { unique: settings.unique });
 
-    // Otherwise, add the unique index directly to the custom field.
+        // Otherwise, add the unique index directly to the custom field.
     } else {
         // Add properties for field in schema.
         schema.path(settings.field).index({ unique: settings.unique });
@@ -109,7 +109,7 @@ exports.plugin = function plugin(schema, options) {
         var ranOnce = doc.__maiRanOnce === true;
 
         // Only do this if it is a new document & the field doesn't have a value set (see http://mongoosejs.com/docs/api.html#document_Document-isNew)
-        if ((doc.isNew && ranOnce === false) || settings.migrate) {
+        if ((doc.isNew && ranOnce === false && !doc[settings.field]) || settings.migrate) {
             (function save() {
                 // Find the counter for this model and the relevant field.
                 IdentityCounter.findOne({
@@ -160,7 +160,7 @@ exports.plugin = function plugin(schema, options) {
 
                             // if an output filter was provided, apply it.
                             if (typeof settings.outputFilter === 'function') {
-                              count = settings.outputFilter(updatedIdentityCounter.count);
+                                count = settings.outputFilter(updatedIdentityCounter.count);
                             }
 
                             // If there are no errors then go ahead and set the document's field to the current count.
@@ -168,7 +168,7 @@ exports.plugin = function plugin(schema, options) {
                             doc.__maiRanOnce = true;
                         });
                     }
-                }).then(next).catch(function(err) {
+                }).then(next).catch(function (err) {
                     if (err.name === 'MongoError' && err.code === 11000) {
                         setTimeout(save, 5);
                     } else {
@@ -176,8 +176,8 @@ exports.plugin = function plugin(schema, options) {
                     }
                 });
             })();
-        // If the document does not have the field we're interested in or that field isn't a number AND the user did
-        // not specify that we should increment on updates, then just continue the save without any increment logic.
+            // If the document does not have the field we're interested in or that field isn't a number AND the user did
+            // not specify that we should increment on updates, then just continue the save without any increment logic.
         } else {
             next();
         }
