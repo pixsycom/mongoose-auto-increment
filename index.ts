@@ -1,6 +1,6 @@
-// Module Scope
-var mongoose = require('mongoose');
-var _ = require('lodash');
+import mongoose from 'mongoose'
+import { set } from 'lodash'
+
 
 var IdentityCounter;
 
@@ -20,7 +20,7 @@ counterSchema.index({
 });
 
 // Initialize plugin by creating counter collection in database.
-exports.initialize = function initialize(connection) {
+export function initialize(connection) {
     try {
         IdentityCounter = connection.model('IdentityCounter');
     } catch (ex) {
@@ -34,7 +34,7 @@ exports.initialize = function initialize(connection) {
 };
 
 // The function to use when invoking the plugin on a custom schema.
-exports.plugin = function plugin(schema, options) {
+export function plugin(schema, options) {
     var compoundIndex = {};
     var fields = {}; // A hash of fields to add properties to in Mongoose.
 
@@ -63,7 +63,7 @@ exports.plugin = function plugin(schema, options) {
             break;
         // If object, the user passed in a hash of options.
         case 'object':
-            _.assign(settings, options);
+            Object.assign(settings, options);
             break;
     }
 
@@ -78,7 +78,7 @@ exports.plugin = function plugin(schema, options) {
     }
 
     if (!schema.path(settings.field) || settings.field === '_id') {
-        schema.add(_.set({}, settings.field, { type: Number }));
+        schema.add(set({}, settings.field, { type: Number }));
     }
 
     // If a groupingField is specified, create a compound unique index.

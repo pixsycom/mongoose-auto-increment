@@ -1,4 +1,4 @@
-## Submitting Issues
+# Submitting Issues
 
 If you experience any issues with this plugin please feel free to submit them to the [issue tracker](https://github.com/Chevex/mongoose-auto-increment/issues) for this project. One of the projects contributors will eventually take a look at it. Please be patient.
 

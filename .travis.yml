@@ -2,8 +2,9 @@ language: node_js
 services:
   - mongodb
 node_js:
-  - "0.10"
+  - "10"
+  - "12"
 before_script:
-  - npm install
+  - yarn install
 notifications:
   email: false

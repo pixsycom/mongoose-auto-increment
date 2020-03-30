@@ -1,0 +1,21 @@
+{
+  "compilerOptions": {
+    "allowSyntheticDefaultImports":true,
+    "resolveJsonModule": true,
+    "esModuleInterop": true,
+    "removeComments": true,
+    "noLib": false,
+    "emitDecoratorMetadata": true,
+    "noImplicitAny": false,
+    "experimentalDecorators": true,
+    "sourceMap": true,
+    "declaration": true,
+    "noResolve": false,
+    "moduleResolution": "node",
+    "rootDir": "./",
+    "outDir": "dist",
+    "target": "ESNext",
+    "module": "ESNext",
+  },
+  "exclude": ["node_modules", "**/*.spec.ts", "src/public", "dist"]
+}

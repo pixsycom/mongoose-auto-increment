@@ -2,3 +2,7 @@
 node_modules/
 *.swp
 *.swo
+*.lock
+dist
+.prettier*
+data
