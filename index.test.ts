@@ -1,12 +1,17 @@
 import mongoose from 'mongoose';
-// import bases from 'bases';
+import Promise from 'bluebird';
+import 'bases';
 import async from 'async';
 import * as autoIncrement from '.';
 import 'jest';
+import { rootDebug } from './debug';
+
+const debug = rootDebug.spawn('test');
 
 let connection;
+const afterEachPromises = [];
 
-mongoose.Promise = global.Promise;
+mongoose.Promise = Promise;
 
 beforeAll((done) => {
   connection = mongoose.createConnection(
@@ -19,22 +24,43 @@ beforeAll((done) => {
   });
 });
 
-afterAll((done) => {
-  connection.db.dropDatabase((err) => {
-    if (err) return done(err);
-    connection.close(done);
-  });
-});
+afterAll(() =>
+  // afterAll is not working exactly so we brute force it via afterEachPromises
+  Promise.all(afterEachPromises).then(
+    () =>
+      new Promise((done) => {
+        const d = debug.spawn('afterAll');
+        d(() => 'dropDatabase');
+        connection.db.dropDatabase((err) => {
+          if (err) return done(err);
+          debug(() => 'close connection');
+          connection.close(done);
+        });
+      })
+  )
+);
 
-afterEach((done) => {
-  try {
-    connection.model('User').collection.drop(() => {
-      delete connection.models.User;
-      connection.model('IdentityCounter').collection.drop(done);
-    });
-  } catch (e) {
-    done();
-  }
+afterEach(() => {
+  const p = new Promise((resolve) => {
+    const d = debug.spawn('afterEach');
+    try {
+      d(() => 'drop user');
+      connection.model('User').collection.drop(() => {
+        delete connection.models.User;
+        d(() => 'drop IdentityCounter');
+        connection.model('IdentityCounter').collection.drop(() => {
+          d(() => 'DONE:drop IdentityCounter');
+          resolve();
+        });
+      });
+    } catch (e) {
+      d(() => 'DONE: EXCEPTION');
+      console.error(e);
+      resolve();
+    }
+  });
+  afterEachPromises.push(p);
+  return p;
 });
 
 describe('mongoose-auto-increment', () => {
@@ -64,7 +90,7 @@ describe('mongoose-auto-increment', () => {
 
     // Assert
     function assert(err) {
-      expect(err).toBeUndefined();
+      expect(err).toBeFalsy();
       expect(user1).toHaveProperty('_id', 0);
       expect(user2).toHaveProperty('_id', 1);
       done();
@@ -97,7 +123,7 @@ describe('mongoose-auto-increment', () => {
 
     // Assert
     function assert(err, results) {
-      expect(err).toBeUndefined();
+      expect(err).toBeFalsy();
       expect(results.user1).toHaveProperty('_id', 0);
       expect(results.user2).toHaveProperty('_id', 1);
       done();
@@ -130,7 +156,7 @@ describe('mongoose-auto-increment', () => {
 
     // Assert
     function assert(err, results) {
-      expect(err).toBeUndefined();
+      expect(err).toBeFalsy();
       expect(results.user1).toHaveProperty('userId', 0);
       expect(results.user2).toHaveProperty('userId', 1);
       done();
@@ -153,14 +179,11 @@ docs while multiple documents in parallel`, (done) => {
 
     // Act
     Promise.all([user1.save(), user2.save(), user3.save()])
-      .then(assert)
+      .then((results) => {
+        expect(results).toHaveLength(3);
+        done();
+      })
       .catch(done);
-
-    // Assert
-    function assert(results) {
-      results.length.should.equal(3);
-      done();
-    }
   });
 
   it('should start counting at specified number (Test 3)', (done) => {
@@ -189,7 +212,7 @@ docs while multiple documents in parallel`, (done) => {
 
     // Assert
     function assert(err, results) {
-      expect(err).toBeUndefined();
+      expect(err).toBeFalsy();
       expect(results.user1).toHaveProperty('_id', 3);
       expect(results.user2).toHaveProperty('_id', 4);
       done();
@@ -227,7 +250,7 @@ docs while multiple documents in parallel`, (done) => {
 
     // Assert
     function assert(err, results) {
-      expect(err).toBeUndefined();
+      expect(err).toBeFalsy();
       expect(results.user1).toHaveProperty('_id', 0);
       expect(results.user2).toHaveProperty('_id', 5);
       done();
@@ -276,7 +299,7 @@ docs while multiple documents in parallel`, (done) => {
         if (err) {
           done(err);
         } else {
-          expect(err).toBeUndefined();
+          expect(err).toBeFalsy();
           expect(results.user1).toHaveProperty('userId', 0);
           expect(results.user2).toHaveProperty('userId', 0);
           expect(results.user3).toHaveProperty('userId', 1);
@@ -299,7 +322,7 @@ docs while multiple documents in parallel`, (done) => {
           groupingField: 'dept',
         });
       } catch (err) {
-        err.message.should.equal(
+        expect(err.message).toEqual(
           'Cannot use a grouping field with _id, choose a different field name.'
         );
         done();
@@ -343,12 +366,12 @@ docs while multiple documents in parallel`, (done) => {
 
       // Assert
       function assert(err, results) {
-        expect(err).toBeUndefined();
-        results.count1.should.equal(0);
+        expect(err).toBeFalsy();
+        expect(results.count1).toEqual(0);
         expect(results.user1).toHaveProperty('_id', 0);
-        results.count2.should.equal(1);
+        expect(results.count2).toEqual(1);
         expect(results.user2).toHaveProperty('_id', 1);
-        results.count3.should.equal(2);
+        expect(results.count3).toEqual(2);
         done();
       }
     });
@@ -385,11 +408,11 @@ if there were no documents yet.`, (done) => {
 
       // Assert
       function assert(err, results) {
-        expect(err).toBeUndefined();
+        expect(err).toBeFalsy();
         expect(results.user).toHaveProperty('_id', 0);
-        results.count1.should.equal(1);
-        results.reset.should.equal(0);
-        results.count2.should.equal(0);
+        expect(results.count1).toEqual(1);
+        expect(results.reset).toEqual(0);
+        expect(results.count2).toEqual(0);
         done();
       }
     });
@@ -428,7 +451,7 @@ if there were no documents yet.`, (done) => {
 
         // Assert
         function assert(err, result) {
-          expect(err).toBeUndefined();
+          expect(err).toBeFalsy();
           expect(result).toHaveProperty('orderNumber', initialId);
           done();
         }
@@ -479,12 +502,12 @@ for the model, field, and groupingField`, (done) => {
           if (err) {
             done(err);
           }
-          expect(err).toBeUndefined();
-          results.count1.should.equal(0);
+          expect(err).toBeFalsy();
+          expect(results.count1).toEqual(0);
           expect(results.user1).toHaveProperty('userId', 0);
-          results.count2.should.equal(1);
+          expect(results.count2).toEqual(1);
           expect(results.user2).toHaveProperty('userId', 0);
-          results.count3.should.equal(1);
+          expect(results.count3).toEqual(1);
           done();
         }
       });
