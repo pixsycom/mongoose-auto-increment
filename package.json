@@ -48,7 +48,13 @@
       "url": "https://github.com/tomaskavka"
     }
   ],
+  "files": [
+    "dist/index.js",
+    "dist/index.js.map",
+    "dist/index.d.ts"
+  ],
   "main": "dist/index.js",
+  "types": "dist/index.d.ts",
   "scripts": {
     "build": "rm -rf ./dist && yarn tsc",
     "prepare": "yarn sort-package-json && yarn js-common-prettierrc-clone",
@@ -61,6 +67,8 @@
   },
   "devDependencies": {
     "@types/jest": "^24.0.17",
+    "@types/mongoose": "5",
+    "@types/node": "^12",
     "@znemz/js-common-eslint-config-react-emotion": "0.2.1",
     "@znemz/js-common-jest-config-mono-package-clone": "^0.2.1",
     "@znemz/js-common-jest-deps": "0.2.1",

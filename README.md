@@ -1,8 +1,4 @@
-# mongoose-auto-increment
-
-[![Build Status](https://travis-ci.org/codetunnel/mongoose-auto-increment.png?branch=master)](https://travis-ci.org/codetunnel/mongoose-auto-increment)
-[![Dependencies Status](https://gemnasium.com/codetunnel/mongoose-auto-increment.png)](https://gemnasium.com/codetunnel/mongoose-auto-increment)
-[![NPM version](https://badge.fury.io/js/mongoose-auto-increment.png)](http://badge.fury.io/js/mongoose-auto-increment)
+# mongoose-auto-increment [![NPM version][npm-image]][npm-url] [![build status][travis-image]][travis-url] [![Test coverage][coveralls-image]][coveralls-url]
 
 > Mongoose plugin that auto-increments any ID field on your schema every time a document is saved.
 
@@ -130,3 +126,10 @@ book.save(function (err) {
 
 });
 ````
+
+[npm-image]: https://img.shields.io/npm/v/@znemz/mongoose-auto-increment.svg
+[npm-url]: https://www.npmjs.com/package/mongoose-auto-increment
+[travis-image]: https://img.shields.io/travis/nmccready/mongoose-auto-increment.svg
+[travis-url]: https://travis-ci.org/nmccready/mongoose-auto-increment
+[coveralls-image]: https://coveralls.io/repos/github/nmccready/mongoose-auto-increment/badge.svg
+[coveralls-url]: https://coveralls.io/github/nmccready/mongoose-auto-increment?branch=master

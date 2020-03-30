@@ -1,9 +1,9 @@
-import mongoose from 'mongoose';
+import { Connection, Schema } from 'mongoose';
 import { set } from 'lodash';
 
 let IdentityCounter;
 
-const counterSchema = new mongoose.Schema({
+const counterSchema = new Schema({
   model: { type: String, required: true },
   field: { type: String, required: true },
   groupingField: { type: String, default: '' },
@@ -22,7 +22,7 @@ counterSchema.index(
 );
 
 // Initialize plugin by creating counter collection in database.
-export function initialize(connection) {
+export function initialize(connection: Connection) {
   try {
     IdentityCounter = connection.model('IdentityCounter');
   } catch (ex) {
@@ -35,26 +35,42 @@ export function initialize(connection) {
   }
 }
 
+export interface PluginOptions<Model> {
+  // If this is to be run on a migration for existing records.
+  // Only set this on migration processes.
+  migrate: boolean;
+  model: Model; // The model to configure the plugin for.
+  field: string; // The field the plugin should track.
+  // The field by which to group documents,
+  // allowing for each grouping to be incremented separately.
+  groupingField: string;
+  startAt: number; // The number the count should start at.
+  incrementBy: number; // The number by which to increment the count each time.
+  unique: boolean; // Should we create a unique index for the field,
+  outputFilter: (_: number) => number; // function that modifies the output of the counter.
+}
+
+export const DEFAULT_SETTINGS = {
+  migrate: false,
+  model: null,
+  field: '_id',
+  groupingField: '',
+  startAt: 0,
+  incrementBy: 1,
+  unique: true,
+  outputFilter: undefined,
+};
+
 // The function to use when invoking the plugin on a custom schema.
-export function plugin(schema, options) {
+export function plugin<Model = {}>(
+  schema: Schema<Model>,
+  options?: PluginOptions<Model> | string | any
+) {
   const compoundIndex = {};
   // const fields = {}; // A hash of fields to add properties to in Mongoose.
 
   // Default settings and plugin scope variables.
-  const settings = {
-    // If this is to be run on a migration for existing records.
-    // Only set this on migration processes.
-    migrate: false,
-    model: null, // The model to configure the plugin for.
-    field: '_id', // The field the plugin should track.
-    // The field by which to group documents,
-    // allowing for each grouping to be incremented separately.
-    groupingField: '',
-    startAt: 0, // The number the count should start at.
-    incrementBy: 1, // The number by which to increment the count each time.
-    unique: true, // Should we create a unique index for the field,
-    outputFilter: undefined, // function that modifies the output of the counter.
-  };
+  const settings = { ...DEFAULT_SETTINGS };
 
   /*
   If we don't have reference to the counterSchema or
@@ -75,7 +91,7 @@ export function plugin(schema, options) {
       Object.assign(settings, options);
       break;
     default:
-      throw new Error('unsupported type');
+      break;
   }
 
   if (typeof settings.model !== 'string') {
@@ -105,10 +121,12 @@ export function plugin(schema, options) {
   }
 
   // Add nextCount as both a method on documents and a static on the schema for convenience.
+  // @ts-ignore
   schema.method('nextCount', nextCount);
   schema.static('nextCount', nextCount);
 
   // Add resetCount as both a method on documents and a static on the schema for convenience.
+  // @ts-ignore
   schema.method('resetCount', resetCount);
   schema.static('resetCount', resetCount);
 
@@ -119,6 +137,7 @@ export function plugin(schema, options) {
     const doc = this;
     // True if the counter collection has been updated and the document is ready to be saved.
     // let ready = false;
+    // @ts-ignore
     const ranOnce = doc.__maiRanOnce === true;
 
     // Only do this if it is a new document & the field doesn't have a value set (see http://mongoosejs.com/docs/api.html#document_Document-isNew)
@@ -193,6 +212,7 @@ export function plugin(schema, options) {
                 // If there are no errors then go ahead and
                 // set the document's field to the current count.
                 doc.set(settings.field, count);
+                // @ts-ignore
                 doc.__maiRanOnce = true;
               });
           })
