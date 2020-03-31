@@ -89,6 +89,5 @@
   },
   "engines": {
     "node": ">=10"
-  },
-  "type": "module"
+  }
 }
