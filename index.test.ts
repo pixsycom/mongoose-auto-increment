@@ -64,6 +64,9 @@ afterEach(() => {
 });
 
 describe('mongoose-auto-increment', () => {
+  it('promisedApi should resolve', () =>
+    autoIncrement.promisedApi.then(({ plugin }) => expect(plugin).toBeDefined()));
+
   it('should increment the _id field on validate', (done) => {
     // Arrange
     const userSchema = new mongoose.Schema({

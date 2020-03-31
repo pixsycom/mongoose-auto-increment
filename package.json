@@ -49,23 +49,22 @@
     }
   ],
   "files": [
-    "dist/index.js",
-    "dist/index.js.map",
-    "dist/index.d.ts"
+    "dist"
   ],
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
-    "build": "rm -rf ./dist && yarn tsc",
+    "build": "rm -rf ./dist && yarn tsc && rm -f ./dist/*.test*",
     "prepare": "yarn sort-package-json && yarn js-common-prettierrc-clone",
     "prepublishOnly": "yarn build",
-    "test": "jest"
+    "test": "rm -rf ./dist && yarn jest"
   },
   "dependencies": {
     "debug-fabulous": "^2.0.1",
     "lodash": "^4.17.4"
   },
   "devDependencies": {
+    "@types/bluebird": "^3.5.30",
     "@types/jest": "^24.0.17",
     "@types/mongoose": "5",
     "@types/node": "^12",

@@ -1,9 +1,35 @@
 import { Connection, Schema } from 'mongoose';
 import { set } from 'lodash';
+import {
+  PromisedApi,
+  DEFAULT_SETTINGS,
+  PluginOptions,
+  CounterSchema,
+  incrementFact,
+  saveFact as save,
+} from './internals';
+import { rootDebug as debug } from './debug';
+
+export * from './internals';
+
+const defer = <T>() => {
+  let resolve, reject;
+  const promise = new Promise<T>((_resolve, _reject) => {
+    resolve = _resolve;
+    reject = _reject;
+  });
+  return {
+    promise,
+    resolve,
+    reject,
+  };
+};
 
 let IdentityCounter;
+const deferredApi = defer<PromisedApi>();
+const api = { plugin };
 
-const counterSchema = new Schema({
+const counterSchema = new Schema<CounterSchema>({
   model: { type: String, required: true },
   field: { type: String, required: true },
   groupingField: { type: String, default: '' },
@@ -21,45 +47,24 @@ counterSchema.index(
   }
 );
 
+export const promisedApi = deferredApi.promise;
+
 // Initialize plugin by creating counter collection in database.
 export function initialize(connection: Connection) {
   try {
     IdentityCounter = connection.model('IdentityCounter');
+    deferredApi.resolve(api);
   } catch (ex) {
     if (ex.name === 'MissingSchemaError') {
       // Create model using new schema.
       IdentityCounter = connection.model('IdentityCounter', counterSchema);
+      deferredApi.resolve(api);
     } else {
+      deferredApi.reject(ex);
       throw ex;
     }
   }
 }
-
-export interface PluginOptions<Model> {
-  // If this is to be run on a migration for existing records.
-  // Only set this on migration processes.
-  migrate: boolean;
-  model: Model; // The model to configure the plugin for.
-  field: string; // The field the plugin should track.
-  // The field by which to group documents,
-  // allowing for each grouping to be incremented separately.
-  groupingField: string;
-  startAt: number; // The number the count should start at.
-  incrementBy: number; // The number by which to increment the count each time.
-  unique: boolean; // Should we create a unique index for the field,
-  outputFilter: (_: number) => number; // function that modifies the output of the counter.
-}
-
-export const DEFAULT_SETTINGS = {
-  migrate: false,
-  model: null,
-  field: '_id',
-  groupingField: '',
-  startAt: 0,
-  incrementBy: 1,
-  unique: true,
-  outputFilter: undefined,
-};
 
 // The function to use when invoking the plugin on a custom schema.
 export function plugin<Model = {}>(
@@ -67,10 +72,8 @@ export function plugin<Model = {}>(
   options?: PluginOptions<Model> | string | any
 ) {
   const compoundIndex = {};
-  // const fields = {}; // A hash of fields to add properties to in Mongoose.
-
-  // Default settings and plugin scope variables.
   const settings = { ...DEFAULT_SETTINGS };
+  const { nextCount, resetCount } = incrementFact(settings, IdentityCounter);
 
   /*
   If we don't have reference to the counterSchema or
@@ -93,6 +96,8 @@ export function plugin<Model = {}>(
     default:
       break;
   }
+
+  debug(() => settings);
 
   if (typeof settings.model !== 'string') {
     throw new Error('model must be set');
@@ -142,89 +147,7 @@ export function plugin<Model = {}>(
 
     // Only do this if it is a new document & the field doesn't have a value set (see http://mongoosejs.com/docs/api.html#document_Document-isNew)
     if ((doc.isNew && ranOnce === false && !doc[settings.field]) || settings.migrate) {
-      (function save() {
-        // Find the counter for this model and the relevant field.
-        IdentityCounter.findOne({
-          model: settings.model,
-          field: settings.field,
-          groupingField: doc.get(settings.groupingField) || '',
-        })
-          .exec()
-          .then((counter) => {
-            if (counter) {
-              return counter;
-            }
-
-            // If no counter exists then create one and save it.
-            counter = new IdentityCounter({
-              model: settings.model,
-              field: settings.field,
-              groupingField: doc.get(settings.groupingField) || '',
-              count: settings.startAt - settings.incrementBy,
-            });
-
-            return counter.save();
-          })
-          .then(() => {
-            // check that a number has already been provided,
-            // and update the counter to that number if it is
-            // greater than the current count
-            if (typeof doc.get(settings.field) === 'number') {
-              return IdentityCounter.findOneAndUpdate(
-                {
-                  model: settings.model,
-                  field: settings.field,
-                  groupingField: doc.get(settings.groupingField) || '',
-                  count: { $lt: doc.get(settings.field) },
-                },
-                {
-                  // Change the count of the value found to the new field value.
-                  count: doc.get(settings.field),
-                }
-              ).exec();
-            }
-            // Find the counter collection entry for this model and field and update it.
-            return IdentityCounter.findOneAndUpdate(
-              {
-                model: settings.model,
-                field: settings.field,
-                groupingField: doc.get(settings.groupingField) || '',
-              },
-              {
-                // Increment the count by `incrementBy`.
-                $inc: { count: settings.incrementBy },
-              },
-              {
-                // new:true specifies that the callback should
-                // get the counter AFTER it is updated (incremented).
-                new: true,
-              }
-            )
-              .exec()
-              .then((updatedIdentityCounter) => {
-                let { count } = updatedIdentityCounter;
-
-                // if an output filter was provided, apply it.
-                if (typeof settings.outputFilter === 'function') {
-                  count = settings.outputFilter(updatedIdentityCounter.count);
-                }
-
-                // If there are no errors then go ahead and
-                // set the document's field to the current count.
-                doc.set(settings.field, count);
-                // @ts-ignore
-                doc.__maiRanOnce = true;
-              });
-          })
-          .then(next)
-          .catch((err) => {
-            if (err.name === 'MongoError' && err.code === 11000) {
-              setTimeout(save, 5);
-            } else {
-              next(err);
-            }
-          });
-      })();
+      save({ doc, settings, IdentityCounter, next })();
       /*
       If the document does not have the field we're interested in or that field
         isn't a number AND the user did not specify that we should increment on
@@ -234,57 +157,4 @@ export function plugin<Model = {}>(
       next();
     }
   });
-
-  // Declare a function to get the next counter for the model/schema.
-  function nextCount(...args) {
-    let groupingFieldValue = '';
-    let callback;
-
-    if (typeof args[0] !== 'function') {
-      groupingFieldValue = args[0].toString();
-      callback = args[1];
-    } else {
-      callback = args[0];
-    }
-
-    IdentityCounter.findOne(
-      {
-        model: settings.model,
-        field: settings.field,
-        groupingField: groupingFieldValue,
-      },
-      (err, counter) => {
-        if (err) {
-          return callback(err);
-        }
-        callback(
-          null,
-          counter === null ? settings.startAt : counter.count + settings.incrementBy
-        );
-      }
-    );
-  }
-
-  // Declare a function to reset counter at the start value - increment value.
-  function resetCount(...args) {
-    let groupingFieldValue = '';
-    let callback;
-
-    if (typeof args[0] !== 'function') {
-      groupingFieldValue = args[0].toString();
-      callback = args[1];
-    } else {
-      callback = args[0];
-    }
-
-    IdentityCounter.findOneAndUpdate(
-      { model: settings.model, field: settings.field, groupingField: groupingFieldValue },
-      { count: settings.startAt - settings.incrementBy },
-      { new: true }, // new: true specifies that the callback should get the updated counter.
-      (err) => {
-        if (err) return callback(err);
-        callback(null, settings.startAt);
-      }
-    );
-  }
 }
